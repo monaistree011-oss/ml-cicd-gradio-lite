@@ -23,13 +23,15 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: make install
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Auto-format Code Layout
+      - name: Apply Code Layout Formatting
         run: black train.py
 
       - name: Train model
-        run: make train
+        run: python train.py
 
       - name: Generate evaluation report
         run: |
@@ -60,3 +62,4 @@ jobs:
           hf upload "$HF_SPACE_ID" results/ results \
             --repo-type space \
             --commit-message "Upload evaluation results"
+
