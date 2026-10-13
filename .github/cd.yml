@@ -24,11 +24,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Apply Code Layout Formatting
-        run: black train.py
+      - name: Auto-format Code Layout
+        run: pip install black && black train.py
 
       - name: Train model
         run: python train.py
@@ -62,4 +62,3 @@ jobs:
           hf upload "$HF_SPACE_ID" results/ results \
             --repo-type space \
             --commit-message "Upload evaluation results"
-
