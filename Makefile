@@ -1,11 +1,11 @@
-﻿PHONY: install format train eval all
+﻿.PHONY: install format train eval all
 
 install:
 	pip install --upgrade pip
 	pip install -r requirements.txt
 
 format:
-	black --check train.py
+	black train.py
 
 train:
 	python train.py
