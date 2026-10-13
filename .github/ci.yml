@@ -27,7 +27,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Apply Code Layout Formatting
+      - name: Auto-format Code Layout
         run: pip install black && black train.py
 
       - name: Train model
