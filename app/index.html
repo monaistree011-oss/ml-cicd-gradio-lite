@@ -1,92 +1,130 @@
 ﻿<!DOCTYPE html>
-<html lang=\"en\">
+<html lang="en">
 <head>
-  <meta charset=\"UTF-8\">
-  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Drug Classification - ML CI/CD</title>
-  <script src=\"https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js\"></script>
+  <!-- Load the ONNX Runtime WebAssembly Engine -->
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; background: #f5f7fa; color: #333; }
+    .container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    h2 { margin-top: 0; color: #1e293b; }
+    .form-group { margin-bottom: 20px; }
+    label { display: block; margin-bottom: 6px; font-weight: 600; color: #475569; }
+    input, select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+    button { width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+    button:disabled { background: #cbd5e1; cursor: not-allowed; }
+    #result { margin-top: 25px; padding: 15px; background: #f8fafc; border-radius: 6px; border-left: 4px solid #2563eb; display: none; }
+    .metric { margin-bottom: 8px; font-size: 15px; }
+    .status { color: #64748b; font-size: 14px; font-style: italic; text-align: center; margin-bottom: 15px; }
+  </style>
 </head>
 <body>
-<form id=\"predict-form\">
-  <div>
-    <label>Age: <input type=\"number\" id=\"age\" value=\"25\"></label>
-  </div>
-  <div>
-    <label>Sex: 
-      <select id=\"sex\">
-        <option value=\"M\">M</option>
-        <option value=\"F\">F</option>
+
+<div class="container">
+  <h2>Drug Prediction Panel</h2>
+  <div id="loading-status" class="status">Downloading WebAssembly runtime & ONNX model layers...</div>
+
+  <form id="predict-form">
+    <div class="form-group">
+      <label for="age">Age</label>
+      <input type="number" id="age" value="45" required min="1" max="120">
+    </div>
+
+    <div class="form-group">
+      <label for="sex">Sex</label>
+      <select id="sex" required>
+        <option value="F">Female (F)</option>
+        <option value="M">Male (M)</option>
       </select>
-    </label>
-  </div>
-  <div>
-    <label>BP: 
-      <select id=\"bp\">
-        <option value=\"HIGH\">HIGH</option>
-        <option value=\"NORMAL\">NORMAL</option>
-        <option value=\"LOW\">LOW</option>
+    </div>
+
+    <div class="form-group">
+      <label for="bp">Blood Pressure (BP)</label>
+      <select id="bp" required>
+        <option value="HIGH">HIGH</option>
+        <option value="LOW">LOW</option>
+        <option value="NORMAL">NORMAL</option>
       </select>
-    </label>
-  </div>
-  <div>
-    <label>Cholesterol: 
-      <select id=\"cholesterol\">
-        <option value=\"HIGH\">HIGH</option>
-        <option value=\"NORMAL\">NORMAL</option>
+    </div>
+
+    <div class="form-group">
+      <label for="cholesterol">Cholesterol</label>
+      <select id="cholesterol" required>
+        <option value="HIGH">HIGH</option>
+        <option value="NORMAL">NORMAL</option>
       </select>
-    </label>
+    </div>
+
+    <div class="form-group">
+      <label for="na_to_k">Na_to_K Ratio</label>
+      <input type="number" id="na_to_k" value="15.0" step="0.001" required>
+    </div>
+
+    <button type="submit" id="submit-btn" disabled>Predict Treatment Decision</button>
+  </form>
+
+  <div id="result">
+    <div class="metric">Predicted Class: <strong id="predicted-class" style="color: #2563eb;"></strong></div>
+    <div class="metric">Model Confidence: <strong id="confidence"></strong></div>
   </div>
-  <div>
-    <label>Na_to_K: <input type=\"number\" step=\"any\" id=\"na_to_k\" value=\"12.0\"></label>
-  </div>
-  <button type=\"submit\" id=\"submit-btn\" disabled>Predict</button>
-  <div id=\"result\">
-    <div>Predicted Class: <strong id=\"predicted-class\"></strong></div>
-    <div>Model Confidence: <strong id=\"confidence\"></strong></div>
-  </div>
-</form>
+</div>
 
 <script>
-  const MODEL_URL = \"model/drug_model.onnx\";
+  const MODEL_URL = "model/drug_model.onnx";
   let session = null;
 
   async function loadModel() {
     try {
+      // Fetch model layers dynamically relative to Space URL root axis
       session = await ort.InferenceSession.create(MODEL_URL);
-      document.getElementById(\"submit-btn\").disabled = false;
-      console.log(\"Model loaded successfully.\");
-    } catch (e) {
-      console.error(\"Failed to load model:\", e);
+      document.getElementById("submit-btn").disabled = false;
+      document.getElementById("loading-status").textContent = "ONNX Model initialized completely client-side!";
+      document.getElementById("loading-status").style.color = "#16a34a";
+    } catch (error) {
+      document.getElementById("loading-status").textContent = "Error loading ONNX engine: " + error.message;
+      document.getElementById("loading-status").style.color = "#dc2626";
     }
   }
 
   async function predict(event) {
     event.preventDefault();
-    if (!session) return;
 
-    const age = Number(document.getElementById(\"age\").value);
-    const sex = document.getElementById(\"sex\").value;
-    const bp = document.getElementById(\"bp\").value;
-    const cholesterol = document.getElementById(\"cholesterol\").value;
-    const naToK = Number(document.getElementById(\"na_to_k\").value);
+    const age = Number(document.getElementById("age").value);
+    const sex = document.getElementById("sex").value;
+    const bp = document.getElementById("bp").value;
+    const cholesterol = document.getElementById("cholesterol").value;
+    const naToK = Number(document.getElementById("na_to_k").value);
 
+    // Construct raw Tensor dimensions matching scikit-learn ColumnTransformer expectations
     const feeds = {
-      Age: new ort.Tensor(\"int64\", BigInt64Array.from([BigInt(Math.round(age))]), [1, 1]),
-      Sex: new ort.Tensor(\"string\", [sex], [1, 1]),
-      BP: new ort.Tensor(\"string\", [bp], [1, 1]),
-      Cholesterol: new ort.Tensor(\"string\", [cholesterol], [1, 1]),
-      Na_to_K: new ort.Tensor(\"float64\", Float64Array.from([naToK]), [1, 1]),
+      Age: new ort.Tensor("int64", BigInt64Array.from([BigInt(Math.round(age))]), [1, 1]),
+      Sex: new ort.Tensor("string", [sex], [1, 1]),
+      BP: new ort.Tensor("string", [bp], [1, 1]),
+      Cholesterol: new ort.Tensor("string", [cholesterol], [1, 1]),
+      Na_to_K: new ort.Tensor("float64", Float64Array.from([naToK]), [1, 1]),
     };
 
-    const output = await session.run(feeds);
-    const label = output.label.data[0];
-    const maxProb = Math.max(...output.probabilities.data);
+    try {
+      const output = await session.run(feeds);
+      
+      // Extract computed array labels
+      const label = output.label.data[0];
+      
+      // Calculate max probability array mapping because zipmap configuration is disabled
+      const probabilities = output.probabilities.data;
+      const maxProb = Math.max(...probabilities);
 
-    document.getElementById(\"predicted-class\").textContent = label;
-    document.getElementById(\"confidence\").textContent = (maxProb * 100).toFixed(2) + \"%\";
+      document.getElementById("predicted-class").textContent = label;
+      document.getElementById("confidence").textContent = (maxProb * 100).toFixed(2) + "%";
+      document.getElementById("result").style.display = "block";
+    } catch (error) {
+      alert("Inference calculation failed: " + error.message);
+    }
   }
 
-  document.getElementById(\"predict-form\").addEventListener(\"submit\", predict);
+  document.getElementById("predict-form").addEventListener("submit", predict);
   loadModel();
 </script>
 </body>
