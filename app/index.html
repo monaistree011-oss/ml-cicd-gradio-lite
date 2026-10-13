@@ -1,0 +1,93 @@
+﻿<!DOCTYPE html>
+<html lang=\"en\">
+<head>
+  <meta charset=\"UTF-8\">
+  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+  <title>Drug Classification - ML CI/CD</title>
+  <script src=\"https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js\"></script>
+</head>
+<body>
+<form id=\"predict-form\">
+  <div>
+    <label>Age: <input type=\"number\" id=\"age\" value=\"25\"></label>
+  </div>
+  <div>
+    <label>Sex: 
+      <select id=\"sex\">
+        <option value=\"M\">M</option>
+        <option value=\"F\">F</option>
+      </select>
+    </label>
+  </div>
+  <div>
+    <label>BP: 
+      <select id=\"bp\">
+        <option value=\"HIGH\">HIGH</option>
+        <option value=\"NORMAL\">NORMAL</option>
+        <option value=\"LOW\">LOW</option>
+      </select>
+    </label>
+  </div>
+  <div>
+    <label>Cholesterol: 
+      <select id=\"cholesterol\">
+        <option value=\"HIGH\">HIGH</option>
+        <option value=\"NORMAL\">NORMAL</option>
+      </select>
+    </label>
+  </div>
+  <div>
+    <label>Na_to_K: <input type=\"number\" step=\"any\" id=\"na_to_k\" value=\"12.0\"></label>
+  </div>
+  <button type=\"submit\" id=\"submit-btn\" disabled>Predict</button>
+  <div id=\"result\">
+    <div>Predicted Class: <strong id=\"predicted-class\"></strong></div>
+    <div>Model Confidence: <strong id=\"confidence\"></strong></div>
+  </div>
+</form>
+
+<script>
+  const MODEL_URL = \"model/drug_model.onnx\";
+  let session = null;
+
+  async function loadModel() {
+    try {
+      session = await ort.InferenceSession.create(MODEL_URL);
+      document.getElementById(\"submit-btn\").disabled = false;
+      console.log(\"Model loaded successfully.\");
+    } catch (e) {
+      console.error(\"Failed to load model:\", e);
+    }
+  }
+
+  async function predict(event) {
+    event.preventDefault();
+    if (!session) return;
+
+    const age = Number(document.getElementById(\"age\").value);
+    const sex = document.getElementById(\"sex\").value;
+    const bp = document.getElementById(\"bp\").value;
+    const cholesterol = document.getElementById(\"cholesterol\").value;
+    const naToK = Number(document.getElementById(\"na_to_k\").value);
+
+    const feeds = {
+      Age: new ort.Tensor(\"int64\", BigInt64Array.from([BigInt(Math.round(age))]), [1, 1]),
+      Sex: new ort.Tensor(\"string\", [sex], [1, 1]),
+      BP: new ort.Tensor(\"string\", [bp], [1, 1]),
+      Cholesterol: new ort.Tensor(\"string\", [cholesterol], [1, 1]),
+      Na_to_K: new ort.Tensor(\"float64\", Float64Array.from([naToK]), [1, 1]),
+    };
+
+    const output = await session.run(feeds);
+    const label = output.label.data[0];
+    const maxProb = Math.max(...output.probabilities.data);
+
+    document.getElementById(\"predicted-class\").textContent = label;
+    document.getElementById(\"confidence\").textContent = (maxProb * 100).toFixed(2) + \"%\";
+  }
+
+  document.getElementById(\"predict-form\").addEventListener(\"submit\", predict);
+  loadModel();
+</script>
+</body>
+</html>
